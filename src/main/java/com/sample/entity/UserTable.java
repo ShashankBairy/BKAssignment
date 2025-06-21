@@ -5,6 +5,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,7 +24,8 @@ public class UserTable {
 	
 	private String password;
 	private String designation;
-//	
-//	@JoinColumn(name="campus_id", referencedColumnName="campus_id")
-//	private Campus campus;
+	
+	@OneToOne
+	@JoinColumn(name="campus_id", referencedColumnName="campus_id")
+	private Campus campus;
 }

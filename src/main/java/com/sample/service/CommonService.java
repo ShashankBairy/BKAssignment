@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.sample.dto.CashPaymentDto;
 import com.sample.dto.ConcessionDto;
+import com.sample.dto.EmployeeDetails;
 import com.sample.dto.LoginDto;
 import com.sample.dto.PaymentHistoryDto;
 import com.sample.dto.RequestCancellationDto;
@@ -16,6 +17,7 @@ import com.sample.dto.StudentMajorInfo;
 import com.sample.dto.StudentPerformance;
 import com.sample.dto.StudentProfileDetails;
 import com.sample.entity.AdditionalDetails;
+import com.sample.entity.Campus;
 import com.sample.entity.CampusDetails;
 import com.sample.entity.FeeDetails;
 import com.sample.entity.FeeHeads;
@@ -27,6 +29,7 @@ import com.sample.entity.StudentTransportDetails;
 import com.sample.entity.UserTable;
 import com.sample.repository.AdditionalDetailsRepository;
 import com.sample.repository.CampusDetailsRepository;
+import com.sample.repository.CampusRepository;
 import com.sample.repository.FeeDetailsRepository;
 import com.sample.repository.FeeHeadsRepository;
 import com.sample.repository.OtherFeeHeadsRepository;
@@ -71,6 +74,9 @@ public class CommonService {
 	
 	@Autowired
 	private UserRepository userRepo;
+	
+	@Autowired
+	private CampusRepository campusrepo;
 	
 	public StudentPerformance getStudentPerformance(int studentId) {
 		
@@ -354,19 +360,31 @@ public class CommonService {
 		
 	}
 	
-	public String userLogin (LoginDto login) {
+	public EmployeeDetails userLogin (LoginDto login) {
 		UserTable user = userRepo.findById(login.getEmployee_id()).orElse(null);
 		if(user != null) {
 			String userpassword = user.getPassword();
 			if(userpassword.matches(login.getPassword())) {
-				return "Login Successfull";
+				EmployeeDetails employee = new EmployeeDetails();
+				employee.setDesignation(user.getDesignation());
+				employee.setCampus_id(user.getCampus().getCampusId());
+				return employee;
 			}
 			else {
-			    return "Password Incorrect";	
+			    return null;	
 			}
 		}
 		
-		return "User Not Found";
+		return null;
+	}
+	
+	public Campus getCampus(int campus_id) {
+		Campus campus = campusrepo.findById(campus_id).orElse(null);
+		if(campus != null) {
+			return campus;
+		}
+		
+		return null;
 	}
 	
 }

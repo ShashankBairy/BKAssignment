@@ -16,12 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sample.dto.CashPaymentDto;
 import com.sample.dto.ConcessionDto;
+import com.sample.dto.EmployeeDetails;
 import com.sample.dto.LoginDto;
 import com.sample.dto.PaymentHistoryDto;
 import com.sample.dto.RequestCancellationDto;
 import com.sample.dto.StudentMajorInfo;
 import com.sample.dto.StudentPerformance;
 import com.sample.dto.StudentProfileDetails;
+import com.sample.entity.Campus;
 import com.sample.entity.FeeDetails;
 import com.sample.entity.FeeHeads;
 import com.sample.entity.OtherFeeHeads;
@@ -114,8 +116,13 @@ public class CommonController {
 	}
 	
 	@PostMapping("/login")
-	public String userLogin(@RequestBody LoginDto login) {
+	public EmployeeDetails userLogin(@RequestBody LoginDto login) {
 		return commonService.userLogin(login);
+	}
+	
+	@GetMapping("/campus")
+	public Campus getCampus(@RequestParam int campus_id) {
+		return commonService.getCampus(campus_id);
 	}
 }
 
