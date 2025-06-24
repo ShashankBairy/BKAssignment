@@ -25,10 +25,13 @@ public class CampusDetails {
     private StudentDetails studentDetails;
     
     private int city_id;
-    private int campus_id;
+    
+    @OneToOne
+    @JoinColumn(name="campus_id", referencedColumnName="campus_id")
+    private Campus campus;
  
     private String city;
-    private String campusName;
+    private String campus_name;
 //    private date created_on;
 //	private String created_by;
 //	private date updated_on;

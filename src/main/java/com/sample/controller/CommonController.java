@@ -24,6 +24,7 @@ import com.sample.dto.StudentMajorInfo;
 import com.sample.dto.StudentPerformance;
 import com.sample.dto.StudentProfileDetails;
 import com.sample.entity.Campus;
+import com.sample.entity.CampusDetails;
 import com.sample.entity.FeeDetails;
 import com.sample.entity.FeeHeads;
 import com.sample.entity.OtherFeeHeads;
@@ -123,6 +124,16 @@ public class CommonController {
 	@GetMapping("/campus")
 	public Campus getCampus(@RequestParam int campus_id) {
 		return commonService.getCampus(campus_id);
+	}
+	
+	@GetMapping("/getStudentCampus")
+	public List<CampusDetails> getStudentCampus (@RequestParam int studentId) {
+		return commonService.getStudentCampusDetails(studentId);
+	}
+	
+	@GetMapping("/makevalueszero")
+	public String makeZeros(@RequestParam int studentId) {
+		return commonService.setZero(studentId);
 	}
 }
 

@@ -45,6 +45,10 @@ public class StudentDetails {
 	private int mobile_no;
 	private String address;
 	private String type_class;
+	private int installment_1;
+	private int installment_2;
+	private int installment_3;
+
 //    private date created_on;
 //    private String created_by;
 //    private date updated_on;

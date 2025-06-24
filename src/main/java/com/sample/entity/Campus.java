@@ -21,7 +21,7 @@ public class Campus {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "campus_id")  
-    private int campusId;        
+    private int campusid;        
     @Column(name = "campus_code")
     private String campusCode;
     

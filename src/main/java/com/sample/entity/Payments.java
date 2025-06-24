@@ -1,7 +1,4 @@
 package com.sample.entity;
-
-
-
 import java.sql.Date;
 
 import jakarta.persistence.Column;
@@ -22,7 +19,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Entity
 
-@Table(name="payments", schema="Student_Details")
+@Table(name="payments", schema="`Student_Details`")
 public class Payments {
 	
 	@Id
@@ -68,8 +65,8 @@ public class Payments {
 	private String payment_head;
 	
 	@OneToOne
-	@JoinColumn(name="campus_id", referencedColumnName= "campus_id")
-	private CampusDetails campusDetails;
+    @JoinColumn(name="campus_id", referencedColumnName="campus_id")
+    private Campus campus;
 	
 	private int installment_no;
 	private String remarks;
