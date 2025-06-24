@@ -1,22 +1,25 @@
 package com.sample.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.sample.dto.CashPaymentDto;
 import com.sample.dto.ConcessionDto;
 import com.sample.dto.EmployeeDetails;
-import com.sample.dto.InstallmentsValues;
 import com.sample.dto.LoginDto;
 import com.sample.dto.PaymentHistoryDto;
 import com.sample.dto.RequestCancellationDto;
 import com.sample.dto.StudentMajorInfo;
 import com.sample.dto.StudentPerformance;
 import com.sample.dto.StudentProfileDetails;
+import com.sample.dto.StudentRedisDto;
 import com.sample.entity.AdditionalDetails;
 import com.sample.entity.Campus;
 import com.sample.entity.CampusDetails;
@@ -28,24 +31,15 @@ import com.sample.entity.PocketMoney;
 import com.sample.entity.StudentDetails;
 import com.sample.entity.StudentTransportDetails;
 import com.sample.entity.UserTable;
-import com.sample.repository.AdditionalDetailsRepository;
-import com.sample.repository.CampusDetailsRepository;
-import com.sample.repository.CampusRepository;
-import com.sample.repository.FeeDetailsRepository;
-import com.sample.repository.FeeHeadsRepository;
-import com.sample.repository.OtherFeeHeadsRepository;
-import com.sample.repository.PaymentsRepository;
-import com.sample.repository.PocketMoneyRepository;
-import com.sample.repository.StudentDetailsRepository;
-import com.sample.repository.StudentTransportRepository;
-import com.sample.repository.UserRepository;
-
+import com.sample.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
 public class CommonService {
+
+    private final BusAssianRepository busAssianRepository;
 
 	@Autowired
 	private StudentDetailsRepository studentDetailsRepo;
@@ -79,6 +73,10 @@ public class CommonService {
 
 	@Autowired
 	private CampusRepository campusrepo;
+
+    CommonService(BusAssianRepository busAssianRepository) {
+        this.busAssianRepository = busAssianRepository;
+    }
 
 	public StudentPerformance getStudentPerformance(int studentId) {
 
@@ -172,16 +170,19 @@ public class CommonService {
 
 	@Transactional
 	public String studentPayment(int studentId, CashPaymentDto cash) {
-		StudentDetails student = studentDetailsRepo.findById(studentId).orElse(null);
+		// Fetch student details
+		StudentDetails student = studentDetailsRepo.findById(studentId)
+				.orElseThrow(() -> new RuntimeException("Student not found"));
 
-		FeeHeads feeheads = feeHeadsRepo.findById(cash.getFeeHeadId()).orElse(null);
-		
-//		StudentDetails updateStudent = new StudentDetails();
+		// Fetch fee heads
+		FeeHeads feeheads = feeHeadsRepo.findById(cash.getFeeHeadId())
+				.orElseThrow(() -> new RuntimeException("Fee head not found"));
 
-		List<CampusDetails> campus = campusRepo.findByStudentDetails(student);
+		// Fetch campus details
+//		List<CampusDetails> campus = campusRepo.findByStudentDetails(student);
 
+		// Create new payment entry
 		Payments payment = new Payments();
-
 		payment.setStudentDetails(student);
 		payment.setAmount(cash.getAmount());
 		payment.setBank_details(cash.getBank_details());
@@ -192,49 +193,93 @@ public class CommonService {
 		payment.setMode_of_payment(cash.getModeOfPayment());
 		payment.setPre_paid_reciept_no(cash.getPre_print_reciept_no());
 		payment.setPayment_head(feeheads.getFee_type());
-//		payment.setInstallment_no(1);
 		payment.setPayment_status(1);
-		
-		CampusDetails studentCampus = campus.get(0);
-		
-		Campus originalCampus = campusrepo.findById(studentCampus.getId()).orElse(null);
-		if(originalCampus != null) {
-			payment.setCampus(originalCampus);		
-		}
-		
-		int remainingInstallment1 = 40000 - student.getInstallment_1();
-	    int remainingInstallment2 = 40000 - student.getInstallment_2();
-	    int remainingInstallment3 = 20000 - student.getInstallment_3();
-	    
-	    int amountToPay = cash.getAmount();
-	    
-	    // Process payment across installments
-	    while (amountToPay > 0) {
-	        if (remainingInstallment1 > 0 && amountToPay > 0) {
-	            int amountForInstallment1 = Math.min(remainingInstallment1, amountToPay);
-	            student.setInstallment_1(student.getInstallment_1() + amountForInstallment1);
-	            amountToPay -= amountForInstallment1;
-	            remainingInstallment1 -= amountForInstallment1;
-	        } else if (remainingInstallment2 > 0 && amountToPay > 0) {
-	            int amountForInstallment2 = Math.min(remainingInstallment2, amountToPay);
-	            student.setInstallment_2(student.getInstallment_2() + amountForInstallment2);
-	            amountToPay -= amountForInstallment2;
-	            remainingInstallment2 -= amountForInstallment2;
-	        } else if (remainingInstallment3 > 0 && amountToPay > 0) {
-	            int amountForInstallment3 = Math.min(remainingInstallment3, amountToPay);
-	            student.setInstallment_3(student.getInstallment_3() + amountForInstallment3);
-	            amountToPay -= amountForInstallment3;
-	            remainingInstallment3 -= amountForInstallment3;
-	        } else {
-	            return "Payment exceeds maximum installment limits";
-	        }
-	    }
+		payment.setCheck_date(cash.getCheck_date());
+		payment.setCheck_no(cash.getCheck_no());
 
+		// Set campus
+//        CampusDetails studentCampus = campus.get(0);
+//		Campus originalCampus = campusrepo.findById(studentCampus.getId()).orElse(null);
+//		payment.setCampus(originalCampus);
+
+		// Handle installment payments for feeHeadId == 6
+		int totalDue = 0;
+		if (cash.getFeeHeadId() == 6) {
+			totalDue = studentTotalDue(studentId);
+			totalDue -=cash.getAmount();
+			payment.setTotal_due(totalDue);
+			int remainingInstallment1 = 40000 - student.getInstallment_1();
+			int remainingInstallment2 = 40000 - student.getInstallment_2();
+			int remainingInstallment3 = 20000 - student.getInstallment_3();
+			int amountToPay = cash.getAmount();
+
+			while (amountToPay > 0) {
+				if (remainingInstallment1 > 0 && amountToPay > 0) {
+					int amountForInstallment1 = Math.min(remainingInstallment1, amountToPay);
+					student.setInstallment_1(student.getInstallment_1() + amountForInstallment1);
+					amountToPay -= amountForInstallment1;
+					remainingInstallment1 -= amountForInstallment1;
+					payment.setAmount(amountToPay);
+				} else if (remainingInstallment2 > 0 && amountToPay > 0) {
+					int amountForInstallment2 = Math.min(remainingInstallment2, amountToPay);
+					student.setInstallment_2(student.getInstallment_2() + amountForInstallment2);
+					amountToPay -= amountForInstallment2;
+					remainingInstallment2 -= amountForInstallment2;
+					payment.setAmount(amountToPay);
+				} else if (remainingInstallment3 > 0 && amountToPay > 0) {
+					int amountForInstallment3 = Math.min(remainingInstallment3, amountToPay);
+					student.setInstallment_3(student.getInstallment_3() + amountForInstallment3);
+					amountToPay -= amountForInstallment3;
+					remainingInstallment3 -= amountForInstallment3;
+					payment.setAmount(amountToPay);
+				} else {
+					return "Payment exceeds maximum installment limits";
+				}
+			}
+		}
+		// Handle akash_books for feeHeadId == 1
+		else if (cash.getFeeHeadId() == 1 || cash.getAkashBooks() != null) {
+			payment.setAkash_books(cash.getAkashBooks());
+		}
+		// Handle pocket money for feeHeadId == 5
+		else if (cash.getFeeHeadId() == 5 || cash.getPocket_money_amount() != 0) {
+			// Fetch payments for the student and class type
+			List<Payments> studentPayments = paymentsRepo.findByStudentDetailsAndClassType(student,
+					student.getType_class());
+			if (studentPayments == null) {
+				studentPayments = Collections.emptyList();
+			}
+
+			// Search for existing PocketMoney in payments
+			Optional<Payments> existingPocketMoneyPayment = studentPayments.stream()
+					.filter(p -> p.getPocketMoney() != null).findFirst();
+
+			if (existingPocketMoneyPayment.isPresent()) {
+				// Update existing PocketMoney
+				PocketMoney pocketMoney = existingPocketMoneyPayment.get().getPocketMoney();
+				pocketMoney.setDepositedAmount(pocketMoney.getDepositedAmount() + cash.getAmount());
+				pocketMoneyRepo.save(pocketMoney); // Assuming you have a pocketMoneyRepo
+				payment.setPocketMoney(pocketMoney); // Link to existing PocketMoney
+			} else {
+				// Create new PocketMoney
+				PocketMoney newPocketMoney = new PocketMoney();
+				newPocketMoney.setPocket_money_id(1); // Implement ID generation logic
+				newPocketMoney.setDepositedAmount(cash.getPocket_money_amount());
+				newPocketMoney.setPocketRefund(0);
+				newPocketMoney.setTakenAmount(0);
+				newPocketMoney.setFeeHeads(feeheads);
+				pocketMoneyRepo.save(newPocketMoney); // Save new PocketMoney
+				payment.setPocketMoney(newPocketMoney); // Link to new PocketMoney
+			}
+		} else {
+			payment.setAmount(cash.getAmount());
+		}
+
+		// Save payment and student details
 		paymentsRepo.save(payment);
 		studentDetailsRepo.save(student);
 
-		return "Payment successfull";
-
+		return "Payment successful";
 	}
 
 	public String requestCancellation(int studentId, String class_type, RequestCancellationDto cancel) {
@@ -258,7 +303,7 @@ public class CommonService {
 	public List<Payments> paymentHistory(int studentId, String classType) {
 		StudentDetails student = studentDetailsRepo.findById(studentId).orElse(null);
 
-		List<Payments> payment = paymentsRepo.findByStudentDetailsAndClassType(student, classType);
+		List<Payments> payment = paymentsRepo.findByStudentDetailsAndClassType(student, student.getType_class());
 		if (payment != null) {
 			return payment;
 		}
@@ -297,7 +342,7 @@ public class CommonService {
 		}
 
 		List<StudentTransportDetails> transportDetails = getStudentTransportDetails(studentId);
-		if (transportDetails.isEmpty()) {
+		if (transportDetails == null || transportDetails.isEmpty()) {
 			studentInfo.setAcademicYear(null);
 			studentInfo.setTrStatus(null);
 			studentInfo.setStop("");
@@ -354,16 +399,15 @@ public class CommonService {
 		studentInfo.setLanguage3(addDetails.getLanguage3());
 
 		List<CampusDetails> campus = campusRepo.findByStudentDetails(student);
-		if(campus.isEmpty()) {
+		if (campus.isEmpty()) {
 			studentInfo.setCampusName(null);
 			studentInfo.setCity(null);
-		}
-		else {
-			CampusDetails studentCampus = campus.get(campus.size()-1);
+		} else {
+			CampusDetails studentCampus = campus.get(campus.size() - 1);
 			studentInfo.setCampusName(studentCampus.getCampus_name());
 			studentInfo.setCity(studentCampus.getCity());
 		}
-		
+
 		return studentInfo;
 	}
 
@@ -421,37 +465,69 @@ public class CommonService {
 
 		return null;
 	}
-	
+
 	public List<CampusDetails> getStudentCampusDetails(int studentId) {
 		StudentDetails student = studentDetailsRepo.findById(studentId).orElse(null);
-		if(student != null) {
+		if (student != null) {
 			List<CampusDetails> campus = campusRepo.findByStudentDetails(student);
-			if(campus != null) {
+			if (campus != null) {
 				return campus;
-			}
-			else {
+			} else {
 				return null;
 			}
 		}
-		return null;	
+		return null;
 	}
-	
+
 	public String setZero(int studentId) {
 		StudentDetails student = studentDetailsRepo.findById(studentId).orElse(null);
 		student.setInstallment_1(0);
 		student.setInstallment_2(0);
 		student.setInstallment_3(0);
-		
+
 		studentDetailsRepo.save(student);
-		
+
 		return "Values changed";
 	}
-	
+
 	public String setTotalDue(int studentId) {
 		StudentDetails student = studentDetailsRepo.findById(studentId).orElse(null);
-		
-		
+		List<Payments> payments = paymentsRepo.findByStudentDetailsAndClassType(student, student.getType_class());
+
+		for (Payments a : payments) {
+			a.setTotal_due(120000);
+		}
+		paymentsRepo.saveAll(payments);
+		return "Total value changed";
+	}
+
+	public List<StudentDetails> getAllStudents(String admission_status) {
+		return studentDetailsRepo.findAll().stream().filter(
+				student -> admission_status == null || admission_status.equalsIgnoreCase(student.getAdmission_status()))
+				.collect(Collectors.toList());
+	}
+
+	@Cacheable(value = "studentProfileCache", key = "#studentId")
+	public StudentRedisDto getStudentProfileFromCache(int studentId) {
+		StudentDetails student = studentDetailsRepo.findById(studentId).orElse(null);
+		if (student == null) {
+			return null;
+		}
+
+		return new StudentRedisDto(student.getStudentId(), student.getStudentName(), student.getGender(),
+				student.getSection(), student.getAdmission_status(), student.getFather_name());
+
 	}
 	
-
+	public int studentTotalDue(int studentId) {
+		StudentDetails student = studentDetailsRepo.findById(studentId).orElse(null);
+		
+		List<Payments> payments = paymentsRepo.findByStudentDetailsAndClassType(student, student.getType_class());
+		if(payments.isEmpty()) {
+			return 100000;
+		}
+		Payments duePayment = payments.get(payments.size()-1);
+		return duePayment.getTotal_due();
+		
+	}
 }

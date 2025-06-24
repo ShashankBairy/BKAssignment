@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +24,7 @@ import com.sample.dto.RequestCancellationDto;
 import com.sample.dto.StudentMajorInfo;
 import com.sample.dto.StudentPerformance;
 import com.sample.dto.StudentProfileDetails;
+import com.sample.dto.StudentRedisDto;
 import com.sample.entity.Campus;
 import com.sample.entity.CampusDetails;
 import com.sample.entity.FeeDetails;
@@ -134,6 +136,29 @@ public class CommonController {
 	@GetMapping("/makevalueszero")
 	public String makeZeros(@RequestParam int studentId) {
 		return commonService.setZero(studentId);
+	}
+	
+	@GetMapping("/changeTotalDue")
+	public String changeTotalDue (@RequestParam int studentId) {
+		return commonService.setTotalDue(studentId);
+	}
+	
+	@GetMapping("/getStudents")
+	public List<StudentDetails> getStudents(@RequestParam String admission_status){
+		return commonService.getAllStudents(admission_status);
+	}
+	@GetMapping("/api/student/{studentId}")
+	public ResponseEntity<StudentRedisDto> getStudentById(@PathVariable int studentId) {
+	    StudentRedisDto student = commonService.getStudentProfileFromCache(studentId);
+	    if (student == null) {
+	        return ResponseEntity.notFound().build();
+	    }
+	    return ResponseEntity.ok(student);
+	}
+	
+	@GetMapping("/getTotalDue")
+	public int getTotalDue (@RequestParam int studentId) {
+		return commonService.studentTotalDue(studentId);
 	}
 }
 

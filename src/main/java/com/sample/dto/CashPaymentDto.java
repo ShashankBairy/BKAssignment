@@ -21,8 +21,10 @@ public class CashPaymentDto {
 	private int pre_print_reciept_no;
 	private String bank_details;
 	private String amountIn;
-	private String akashBooks;
+	private Integer akashBooks;
 	private String description;
+	private Integer check_no;
+	private Integer check_date;
 	
 	@DateTimeFormat(pattern="yyyy-MM-dd")
 	private Date fee_payment_year;

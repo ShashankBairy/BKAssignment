@@ -64,9 +64,9 @@ public class Payments {
 	
 	private String payment_head;
 	
-	@OneToOne
-    @JoinColumn(name="campus_id", referencedColumnName="campus_id")
-    private Campus campus;
+//	@OneToOne
+//    @JoinColumn(name="campus_id", referencedColumnName="campus_id")
+//    private Campus campus;
 	
 	private int installment_no;
 	private String remarks;
@@ -76,6 +76,9 @@ public class Payments {
 //	private String updated_by;
 	private int payment_status;
 	private Integer requested_amount;
+	private Integer akash_books;
+	private Integer check_no;
+	private Integer check_date;
 	
 
 }
